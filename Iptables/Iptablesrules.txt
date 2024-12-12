@@ -1,0 +1,242 @@
+For filter table:
+
+To change policy to drop for chain output: if doing from remote machine using ssh it will not let us know whether cmd is successfull or not beacuse drop just drop the packet and do not respond with msg like reject.
+
+```
+sudo iptables -P OUTPUT DROP
+```
+
+```
+sudo iptables -L -t filter
+```
+
+To change policy to accept for chain output:
+
+```
+sudo iptables -P OUTPUT ACCEPT
+```
+
+```
+sudo iptables -L -t filter
+```
+
+------------------------------------------------
+***IF no rules as are matched or no rules are mentioned then default policy will be applied
+
+to remove rules(flush):
+```
+sudo iptables --flush
+```
+
+but these are not permanently deleted
+
+To save rules 
+
+```
+iptables save
+```
+
+To delete rules in specific chain
+
+```
+iptables -D FORWARD 1
+```
+-D: to delete, FORWARD is chain, 1: is no rule(in our case reject was at no 1 position so to dlete it we enter 1)
+
+always after iptable we enter either -A: to append, -D: to delete, -I: to insert
+
+
+---------------------------------------------------
+
+
+1. Adding an iptables Rule Temporarily
+
+To add a rule temporarily (which will be lost after reboot), you can use the iptables command directly. Here’s the general syntax:
+
+sudo iptables -A CHAIN CONDITIONS ACTIONS
+
+CHAIN: The chain to which the rule will be added (e.g., INPUT, OUTPUT, FORWARD).
+CONDITIONS: The conditions under which the rule will apply (e.g., source IP, destination port, etc.).
+ACTIONS: The action to be taken (e.g., ACCEPT, DROP, REJECT).
+
+-----------------------------------------------------------------------------------------------
+To configure NAT
+
+ON FIREWALL:
+
+network settings of firewall change mac address of host only port so it gets ip address
+in our case we got 192.168.138.130
+
+```
+iptables -t nat -A POSTROUTING -s 192.168.138.0/24 -o ens33 -j MASQUERADE
+```
+
+192.168.138.0/24: is network address of our clients, ens33: NAT port of firewall and not host-only port.
+
+Postrouting because if we want to ping internally in 138.0 network we do not need NAT so for NATing we need to convert ip while going out of the network we do nating i.e why at postrouting
+and because forwarding do not know what source ip is changed as that's the job of postrouting
+
+ON CLIENT1:
+
+Manually change ipv4 address to our network of 192.168.138.0
+from already assign to lets say 192.168.138.131
+Default gateway: give of firewall host only port
+192.168.138.130
+DNS: give of cdac
+192.168.72.20
+
+and now off and on connections
+
+and now check ping to firewall and cdac dns
+go to browser and access google check it we can access.
+
+----------------------------------------
+
+To block www.cdac.in from client 1
+
+```
+iptables -A FORWARD -p tcp -s 192.168.138.131 -d www.cdac.in --dport 443 -j REJECT
+```
+
+p tcp should be before --dport 443
+We do not give sport because if we don't give by default it's any and we want any becuase it's randomly generated for client.
+
+----------------------------------------------------
+
+To block www.micromax.in from client 2
+
+```
+iptables -A FORWARD -p tcp -s 192.168.138.132 -d www.micromax.in --dport 443 -j REJECT
+```
+
+--------------------------------------------------------------
+
+TO REJECT EVERYTHING FOR ENTIRE NETWORK:
+
+```
+iptables -A FORWARD -j REJECT
+```
+
+after this allow wikipedia.org:
+
+```
+iptables -A FORWARD -p tcp -s 192.168.138.0/24 -d www.wikipedia.org --dport 443 -j ACCEPT
+```
+
+though we have added this rule we can't access wikipedia because before this there is reject rule so it will reject first and will not allow 
+
+so delete this rule:
+
+```
+iptables -D FORWARD 3
+```
+
+and now insert the above rule before reject rule:
+
+```
+iptables -I FORWARD 2 -p tcp -s 192.168.138.0/24 -d www.wikipedia.org --dport 443 -j ACCEPT
+```
+
+
+also after this we can't access because in reject all dns is also getting blocked.
+
+so now allow dns service
+
+```
+iptables -I FORWARD 2 -p udp -s 192.168.138.0/24 -d 192.168.72.20 --dport 53 -j ACCEPT
+```
+
+also after this we can't access because request is sending for dns but not accepting because by reject all it will block incoming traffic from dns as well
+
+so now allow it
+
+```
+iptables -I FORWARD 3 -p udp -s 192.168.72.20 --sport 53 -j ACCEPT
+```
+
+and now it will not work because ereverse tcp incoming is also getting block
+so add it as well
+
+```
+iptables -I FORWARD 5 -p tcp -s www.wikipedia.org --sport 443 -j ACCEPT
+```
+
+now we can acccess wikipedia.org
+
+*********REMEMBER ORDER OF RULES dns-tcp-reject, ALSO sport,dport,protocols,source ip or domain, destination source ip or domain  etc check*********
+EVEN order of source and destination matters 
+
+```
+iptables -I FORWARD 6 -p tcp -s 192.168.138.0/24 -d www.redhat.com --dport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+```
+
+```
+iptables -I FORWARD 7 -p tcp -s www.redhat.com -d 192.168.138.0/24 --sport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+```
+
+*********We apply reject at last and we must add it because if we not add reject for all then anyone can access internet to download things and through it malware can enter into the network, so we block all and allow specific sites which are needed in company
+
+----------------------------------------------------------------------
+to allow www.microsoft.com on client 1 only
+
+```
+iptables -I FORWARD 8 -p tcp -s 192.168.138.131 -d www.microsoft.com --dport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT 
+```
+
+```
+iptables -I FORWARD 9 -p tcp -s www.microsoft.com -d 192.168.138.131 --sport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT 
+```
+
+***while entering particular ip do not give subnet mask otherwise it will enter network address instead of particular ip in iptable***
+
+To allow Youtube
+
+```
+iptables -I FORWARD 1 -p tcp -s 192.168.138.131 -d www.youtube.com --dport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT 
+```
+
+```
+iptables -I FORWARD 2 -p tcp -s www.youtube.com -d 192.168.138.131 --sport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+```
+
+
+----------------------------------------------------------------------
+
+iptables-save
+iptables-restore
+
+If you prefer to manually save and restore the iptables rules, you can use the iptables-save and iptables-restore commands. Here's how:
+
+Save the iptables rules manually:
+
+sudo iptables-save > /etc/sysconfig/iptables
+Create a script to restore the rules on boot:
+Create a script that will restore the rules at boot:
+
+sudo nano /etc/rc.d/init.d/iptables-restore
+Add the following content:
+
+#!/bin/bash
+#Restore iptables rules
+/sbin/iptables-restore < /etc/sysconfig/iptables
+Make the script executable:
+
+sudo chmod +x /etc/rc.d/init.d/iptables-restore
+Add the script to the boot process:
+
+sudo chkconfig --add iptables-restore
+Enable the script to run at boot:
+
+sudo chkconfig iptables-restore on
+After rebooting, the rules should automatically be restored.
+
+OR
+
+Save rules: Use service iptables save or iptables-save.
+Enable the service: Ensure iptables is set to start on boot using systemctl enable iptables.
+Manually restore: Use iptables-restore if needed for custom setups.
+
+
+
+
+
