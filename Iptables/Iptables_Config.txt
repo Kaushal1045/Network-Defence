@@ -1,0 +1,110 @@
+1. To use iptables firewall we must disable firewalld first (But in the backend Firewalld is using Netfilter Only)
+Firewalld relies on Netfilter (via iptables or nftables) to function.
+
+```
+sudo systemctl status firewalld
+```
+
+```
+sudo systemctl stop firewalld
+```
+
+
+```
+sudo systemctl disable firewalld	
+```
+	after reboot it should not start automatically
+
+```
+sudo systemctl status firewalld
+```
+
+2. Enable IP_Forwarding = 1 (Temporary/Permanent)
+
+To allow ip forwarding (i.e to set it to 1)
+
+```
+cat /proc/sys/net/ipv4/ip_forward
+```
+	0
+```
+echo 1 > /proc/sys/net/ipv4/ip_forward
+```
+OR
+```
+echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
+```
+
+But this is temporary
+
+To permanently allow ip forwarding (i.e to set it to 1)
+
+```
+sudo vi /etc/sysctl.conf
+```
+	net.ipv4.ip_forward = 1
+
+Apply the changes immediately without rebooting by running:
+
+```
+sudo sysctl -p /etc/sysctl.conf
+```
+
+```
+sysctl net.ipv4.ip_forward
+```
+OR
+```
+cat /proc/sys/net/ipv4/ip_forward
+```
+
+3. Install iptables
+
+```
+sudo yum install iptables-services -y
+```
+
+```
+sudo systemctl start iptables
+```
+
+```
+sudo systemctl enable iptables
+```
+	after reboot it start automatically
+
+```
+sudo systemctl status iptables		
+```
+	even if shows excited its ok
+
+```
+sudo iptables -L			
+```
+	To check table config(chains and rules)	
+	By default it will give filter table here
+
+
+```
+sudo iptables -L -t nat
+```
+	To check table config for nat table
+
+```
+sudo iptables -L -t mangle
+```
+
+```
+sudo iptables -L -t raw
+```
+
+```
+sudo iptables -L -t security
+```
+
+
+4. Now Enable NATing
+```
+iptables -t nat -A POSTROUTING -s 192.168.138.0/24 -o ens33 -j MASQUERADE
+
+
