@@ -1,0 +1,134 @@
+All iptables rules are of no use if we are using proxy because everything will be accessed through proxy and not direct connection.
+
+```
+yum install squid -y
+```
+
+```
+systemctl start squid
+```
+
+```
+systemctl status squid
+```
+
+```
+cd /etc/squid/
+```
+
+```
+vim squid.conf:
+```
+
+
+acl wiki dstdomain .wikipedia.org
+acl microsoft dstdomain .microsoft.com
+acl client1 src 192.168.50.10
+acl client2 src 192.168.50.20
+acl locallan src 192.168.50.0/24
+acl google dstdomain .google.com
+http_access allow wiki client1
+http_access allow microsoft client2
+http_access allow google locallan
+http_access deny all				[This RULE will be at last only]
+
+
+line 74 uncomment and add:
+cache_dir ufs /var/spool/squid 1024 16 256
+
+
+line 75 add:
+visible_hostname proxy.ditiss.lab		[the hostname will be displayed as proxy.ditiss.lab when we access site]
+
+
+ls /var/spool/squid/00				[256 dir are created]
+
+----------------------------------------------------------------------
+
+```
+iptables -F FORWARD
+```
+
+we need to add 3128 port in input chain of firewall
+```
+iptables -I INPUT 1 -p tcp -s 192.168.50.0/24 --dport 3128 -j ACCEPT
+```
+
+[position should be above reject rule]
+
+Go to clients machine firefox settings--->search proxy---->add IP of host only adapter of firewall and port no 3128 and chechkbox--->ok
+
+-----------------------------------------------------
+```
+cd /etc/squid/
+```
+
+```
+vim squid.conf:
+```
+
+```
+acl wiki dstdomain .wikipedia.org
+acl microsoft dstdomain .microsoft.com
+acl client1 src 192.168.50.10
+acl client2 src 192.168.50.20
+acl locallan src 192.168.50.0/24
+acl allowed_sites dstdomain "/etc/squid/allowed-sites.txt"
+acl bad_words url_regex -i "/etc/squid/badwords.txt"		[-i : case sensitive beacuse our words in files are either caps or small but user can use it any way]
+http_access allow wiki client1
+http_access allow microsoft client2
+http_access deny bad_words locallan
+http_access allow allowed_sites locallan
+http_access deny all
+```
+
+create two files: /etc/squid/allowed-sites.txt and /etc/squid/badwords.txt
+
+
+vim allowed-sites.txt:
+
+.google.com
+.redhat.com
+.hdfcbank.com
+.hotstar.com
+.netflix.com
+.yahoo.com
+
+vim badwords.txt:
+
+movies
+cricket
+football
+music
+
+squid -k reconfigure		[we dont use restart because the time it will take to restart during that time squid will be off for user and so chances of malware to enter the network if any user access any site]
+
+
+---------------------------------------------------------
+
+For time: firewall se block or give access according to its time and not clients time because user can change time of its browser or machine
+
+vim squid.conf:
+
+acl wiki dstdomain .wikipedia.org
+acl microsoft dstdomain .microsoft.com
+acl client1 src 192.168.50.10
+acl client2 src 192.168.50.20
+acl locallan src 192.168.50.0/24
+acl allowed_sites dstdomain "/etc/squid/allowed-sites.txt"
+acl bad_words url_regex -i "/etc/squid/badwords.txt"
+acl ct time MFA 16:00-19:00
+acl time2 time MWF 16:00-19:00
+acl cdac dstdomain .cdac.in
+acl jio dstdomain .jio.com
+http_access allow cdac ct locallan
+http_access allow jio time2 locallan
+http_access allow wiki client1
+http_access allow microsoft client2
+http_access deny bad_words locallan
+http_access allow allowed_sites locallan
+http_access deny all
+
+squid -k reconfigure
+
+always check time of our firewall machine to verify the sites open or not and acc enter it in squid.conf file 
