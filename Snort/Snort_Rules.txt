@@ -1,0 +1,152 @@
+Rule for ping
+
+alert icmp any any -> any any (msg:"Ping detected";sid:1000001;)
+
+save(If red alert then syntax error)
+
+
+Services ---> Snort ---> Snort Interface
+
+click on start button ---> now snort will start capturing (green tick mark and restart option)
+
+now go to windows cmd and ping pfsnese WAN IP
+
+it will not ping as icmp is blocked
+
+
+Services ---> Snort --->alters
+
+alerts are created for ping
+
+clear the rules
+
+-------------------------------------------
+
+Services ---> Snort ---> Snort Interface---> edit the rule--> wan rules
+
+Category Selection: Custom.rules
+
+for wikipedia --> if user from our LAN access wikipedia site we will get alert
+
+alert tcp $HOME_NET any -> any 443 (msg:"Wikipedia Site-Accessed";content:"wikipedia";nocase;sid:1000001;)
+
+any for destination ip: because wikipedia ip can be anything
+content:"wikipedia" ---> to find this word in URL or Packet
+
+
+Services ---> Snort ---> Snort Interface
+Restart
+
+Go to our VM client1 ---> remove proxy from browser and set to Use system proxy settings and access wikipedia
+
+check alerts we should get alerts for it
+
+------------------------------------------------
+
+Rule for Ping Flood:
+
+alert icmp any any -> 192.168.75.137 any (msg:"ping Flood Detected";detection_filter: track by_dst,count 20,seconds 10;sid:1000002;)
+
+track by_dst/by_src
+192.168.75.137 ---> Ip of pfsense firewall WAN  
+detection_filter: track<how to track packet>,count<count no>,seconds<seconds> 
+to detect particular things like IP
+track by dst : here dst beacuse attack is on our ip i.e destination IP 192.168.75.137
+  
+Now normal ping from windows cmd to 192.168.75.137
+
+it will not genearte alert
+
+ping 192.168.75.137 -t   ---> to continuosly send ping request
+
+----------------------------------------------
+
+
+Rule for Ping of Death:
+
+alert icmp any any -> 192.168.75.137 any (msg:"Ping of Death Detected";dsize:>64;sid:1000003;)
+
+dsize: data size
+dsize can be used for any protocol and not only icmp
+
+windows cmd
+ping 192.168.75.137 -l 6500
+
+----------------------------------------------
+
+Rule For Trace route/tracert:
+
+
+alert icmp any any -> 192.168.75.137 any (msg:"Possible trace route";ttl:<30;sid:1000004;)
+
+tracert tries for max 30 hop count
+so TTL<30
+
+Windows cmd
+tracert 192.168.75.137
+
+
+--------------------------------------------
+
+Rule For if clients from our LAN networks tries to send DNS request to www.facebook.com
+
+alert udp $HOME_NET any -> any 53 (msg:"Facebook DNS query generated";content:"facebook";nocase;sid:1000005;)
+
+from client1 Terminal
+host www.facebook.com
+
+--------------------------------------------
+
+Rule For generating error to DROP ping to dns of cdac in our case
+
+drop icmp any any -> 192.168.72.20 any (msg:"DNS SERVER PING";sid:1000006;)
+
+----------------------------------------------
+
+IF we use IPS 
+
+Snort Interface ---> edit---> WAN settings
+
+Block Offenders ---> tick
+IPS Mode --> INline Mode
+save
+
+Snort Interface ---> edit---> WAN rules
+
+drop tcp any any -> any 443 (msg:"Wikipedia Site-Accessed";content:"wikipedia";nocase;sid:1000001;)
+drop icmp any any -> 192.168.72.20 any (msg:"DNS SERVER PING";sid:1000006;)
+
+from client1 Terminal
+ping 192.168.72.20
+
+and from browser 
+www.wikipedia.org
+
+
+---------------------------------------------
+
+To drop dns for hotstar
+
+drop udp any any -> any 53 (msg:"hotstar DNS query generated";content:"hotstar";nocase;sid:1000007;)
+
+client1 Terminal
+host www.hotstar.com
+
+------------------------------------------
+alert icmp any any -> 192.168.75.137 any (msg:"Ping of Death Detected";dsize:>64;sid:1000001;)
+
+alert icmp any any -> 192.168.75.137 any (msg:"Ping Flood Detected";detection_filter: track by_dst,count 20,seconds 10;sid:1000002;)
+
+alert tcp $HOME_NET any -> any 443 (msg:"Torrent Website-Accessed";content:"torrent";nocase;sid:1000003;)
+
+alert udp $HOME_NET any -> any 53 (msg:"Kali DNS Query Generated";content:"kali";nocase;sid:1000004;)
+
+alert udp $HOME_NET any -> any 53 (msg:"Parrot OS DNS Query Generated";content:"parrotsec";nocase;sid:1000005;)
+
+alert udp any any -> 8.8.8.8 53 (msg:"8.8.8.8 DNS Server USED";sid:1000006;)
+
+alert udp any any -> 4.4.4.4 53 (msg:"4.4.4.4 DNS Server USED";sid:1000007;)
+
+alert udp any 68 -> any 67 (msg:"Kali Machine Boots";content:"Kali";nocase;sid:1000008;)
+
+alert tcp any any -> 192.168.75.137 22 (msg:"Possible SSH Password Attack";detection_filter: track by_dst,count 5,seconds 5;sid:1000009;)
