@@ -1,0 +1,240 @@
+Load Balancing Using Nginx
+
+Setup is same as reverse Proxy(For practical purpose only not in Real life), so refer to setup of Reverse Proxy Using Nginx Folder 
+
+Client and Config same as Reverse Proxy:
+Host site on both Client1 and Client on port 80 for both:
+
+On Client1:
+
+```
+sudo vi /etc/httpd/conf/httpd.conf
+```
+		listen 80
+
+```
+sudo setenforce 0
+```
+
+```
+systemctl restart httpd
+```
+
+```
+cd /var/www/html/
+```
+
+```
+sudo vi index.html 
+```
+		Welcome to www.amazon.com....ON Client1!
+
+```
+curl localhost
+````
+
+On Client2:
+```
+sudo vi /etc/httpd/conf/httpd.conf
+```
+
+		listen 80
+
+```
+sudo setenforce 0
+```
+
+```
+systemctl restart httpd
+```
+
+```
+cd /var/www/html/
+```
+
+```
+sudo vi index.html 
+```
+
+		Welcome to www.amazon.com....On client2!
+
+Here we are giving diff content for r understanding but IRL in load balancing all Backend Servers in same group are hosting same application
+
+On Kali:
+
+```
+curl 192.168.100.20
+```
+
+```
+curl 192.168.100.30
+```
+
+```
+cd /etc/nginx/sites-enabled/
+```
+
+```
+sudo vi rproxy.conf
+```
+
+upstream backend {
+		server 192.168.100.20;
+		server 192.168.100.30;
+}
+server {
+			listen 80;
+			location / {
+					proxy_pass http://backend/;
+			}
+}
+
+
+```
+sudo systemctl restart nginx
+```
+
+Default is Round Robin
+
+So on Windows Browser:
+192.168.75.139
+
+refresh again and again it will access client1 and 2 alternatively
+
+Another Algorithm is:
+Least Connections
+
+Other Algorithms on 
+*Sandeep sir NDC GitHub*
+
+To give Algorithm 
+we mention in group above servers
+
+2. Algorithm: Least Connection
+
+```
+sudo vi rproxy.conf
+```
+
+upstream backend {
+		least_conn;
+		server 192.168.100.20 weight=5;
+		server 192.168.100.30;
+}
+server {
+			listen 80;
+			location / {
+					proxy_pass http://backend/;
+			}
+}
+
+
+Here we r giving weight=5 because for 2 sites it was taking like round robin 
+So by adding weight we will be able to observe how least_conn is working
+Now 100.20 will allow 5 Connections and then it will be forwarded to 100.30
+
+We use these feature when let say 100.20 server has more Capacity than 100.30 so 100.20 can handle more load than 100.30
+
+--->And the server for which we want to give weight should be listed at top in group list.
+--->Round Robin also Consider weight
+
+```
+sudo systemctl restart nginx
+```
+
+So on Windows Browser:
+192.168.75.139
+
+refresh again and again it will access client1 for 5 times and Client2 for 1 time.
+
+3. Algorithm: IP hash
+
+In this Algorithm once the outside IP has been forwarded to particular server say for 1st time outside client is given access to 100.20 server then afterwards it will check the database and will only forward that particular client to 100.20 only and not 100.30 server.
+
+IF 1st time we r forwarded to 100.30 then for all future connections we wil be forwarded to 100.30 only and not 100.20
+
+```
+sudo vi rproxy.conf
+```
+
+upstream backend {
+		ip_hash;
+		server 192.168.100.20;
+		server 192.168.100.30;
+}
+server {
+			listen 80;
+			location / {
+					proxy_pass http://backend/;
+			}
+}
+
+
+```
+sudo systemctl restart nginx
+```
+
+4. Consider we want to Take down our 100.30 server for maintenance or other reasons so mention down IN front of that server IP
+
+```
+sudo vi rproxy.conf
+```
+
+upstream backend {
+		server 192.168.100.20;
+		server 192.168.100.30 down;
+}
+server {
+			listen 80;
+			location / {
+					proxy_pass http://backend/;
+			}
+}
+
+```
+sudo systemctl restart nginx
+```
+
+Check on Windows Browser 
+192.168.75.139
+
+We will not be forwarded to 100.30
+Until we remove from down
+
+5. Now to slowly assign load to 100.30 after its added back to service we can give this rule of
+
+slow_start=<Time>s
+eg: slow_start=30s
+
+upstream backend {
+		server 192.168.100.20;
+		server 192.168.100.30 slow_start=30s;
+}
+server {
+			listen 80;
+			location / {
+					proxy_pass http://backend/;
+			}
+}
+
+
+
+If asked for both Load Balancing and Reverse Proxy:
+
+upstream backend {
+		server 192.168.100.20;
+}
+
+upstream test {
+		server 192.168.100.30;
+}
+
+server {
+		listen 80;
+		location / {
+			proxy_pass http://backened;
+		}
+		location /test {
+			proxy_pass http://test;
+		}
+}
