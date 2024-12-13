@@ -1,0 +1,54 @@
+Pfsense---> System--> Package manager 
+
+Install snort
+
+libpap is open-source library for capturing packets
+daq?
+
+Services ---> Snort ---> global settings 
+
+	Emnable--snort VRT --> not slect
+	Enable snort GPLv2 -- tick
+	Emerging threats ---> 1st tick (Enable ET open)
+	Enable OpenAppID --> tick 
+	Upadet interval(to update rules automatically) ---- 1 DAY
+	Update Start Time	20:00
+	Hide Deprecated Rules Categories ---> tick
+
+	General Settings ----> for IPS
+	will see later
+
+Services ---> Snort ---> Update
+
+	update rules
+	Even if it fails ---> not to woory because we r going to make r own rules
+	But in real scenario this is how we have to do it ---> here its getting failed beacuse it might be blocked in cdac firewall
+	
+
+Services ---> Snort ---> Snort Interface--> ADD
+
+We have to create listening interface (WAN ---beacuse most of threats come here)
+
+Enable packet captures---> Tick
+
+Block Settings--> for IPS --> will do it later
+
+Search method--> default---its best
+
+Home Net and External Net(used to block private IP's other than our LAN private IP's)---> are used while defining rules
+
+Services ---> Snort ---> Snort Interface-->WAN Rules
+
+Category Selection: Custom.rules (Here we write rules---> Same rules are used by snort and suricata)
+
+Everything in small case
+here we cane use $home net and $external net in for ip's (source or destination)
+
+```
+alert <protocol till transport layer(tcp,udp,icmp)> <source-ip> <source-port> ->/<> <destination-ip> <destination-port> <parameters>
+```
+Content: To look for word in the packet
+->/<> ---> either of this direction is used
+paramenters : (msg:"log message about detected activity";sid:1000001;)
+eg: dos attack detected, ping attack detected
+sid: snort id given to rule(7 or 8 digit no) ; after everything

@@ -235,8 +235,3 @@ OR
 Save rules: Use service iptables save or iptables-save.
 Enable the service: Ensure iptables is set to start on boot using systemctl enable iptables.
 Manually restore: Use iptables-restore if needed for custom setups.
-
-
-
-
-
